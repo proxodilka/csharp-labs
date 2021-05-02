@@ -14,6 +14,8 @@ namespace blab9
     class Sort
     {
         const int INF = int.MaxValue;
+        const int MINF = int.MinValue;
+        public static int verbose = 0;
         static void QuadricSort(object sort_params)
         {
             object[] parameters = (sort_params as object[]);
@@ -43,7 +45,7 @@ namespace blab9
             }
         }
 
-        public static int[] Merge(int[] arr, List<Range> ranges)
+        public static void Merge(ref int[] arr, Range[] ranges)
         {
             int result_length = 0;
             foreach (var range in ranges)
@@ -55,7 +57,7 @@ namespace blab9
             for (int i=0; i<result_length; i++)
             {
                 int idx_to_append = -1, min_value = INF;
-                for (int j=0; j<ranges.Count; j++)
+                for (int j=0; j<ranges.Length; j++)
                 {
                     if (ranges[j].IsValid && arr[ranges[j].begin] < min_value)
                     {
@@ -66,36 +68,114 @@ namespace blab9
                 result[i] = arr[ranges[idx_to_append].begin];
                 ranges[idx_to_append].begin++;
             }
-
-            return result;
+            arr = result;
         }
 
-        public static int[] ParallelQuadricSort(int[] arr, int? nthreads_ = null)
+        public static void Stack(int[][] values, int[] output)
+        {
+            int i = 0;
+            foreach(var ls in values)
+            {
+                foreach (int x in ls)
+                {
+                    output[i++] = x;
+                }
+            }
+        }
+
+        public static void ParallelQuadricSort(ref int[] arr, int? nthreads_ = null)
         {
             int nthreads = GetNthreads(nthreads_);
-            int chunk_size = (int)(arr.Length / (double)nthreads + 0.5);
+            int chunk_size = (int)Math.Ceiling(arr.Length / (double)nthreads);
             List<Thread> threads = new List<Thread>(nthreads);
-            List<Range> ranges = new List<Range>(nthreads);
-            for (int i=0; i < arr.Length; i += chunk_size)
+            Range[] ranges = new Range[nthreads];
+            for (int i=0, k=0; i < arr.Length; i += chunk_size, k++)
             {
                 threads.Add(new Thread(QuadricSort));
-                ranges.Add(new Range() { 
+                ranges[k] = new Range() { 
                     begin=i,
                     end = Math.Min(i + chunk_size, arr.Length) 
-                });
-                threads[threads.Count - 1].Start(new object[] { arr, ranges[ranges.Count - 1]});
+                };
+                threads[k].Start(new object[] { arr, ranges[k]});
+            }
+            if (ranges[ranges.Length - 1] == null)
+            {
+                ranges[ranges.Length - 1] = new Range() { begin=0, end=0};
             }
             foreach(var thr in threads)
             {
                 thr.Join();
             }
-            return Merge(arr, ranges);
+            Merge(ref arr, ranges);
         }
 
-        //public static int[] ParallelMergeSort(int[] arr, int? nthreads_ = null)
-        //{
-            
-        //}
+        public static void ParallelQuickQuadricSort(ref int[] arr, int? nthreads_=null)
+        {
+            int nthreads = GetNthreads(nthreads_);
+            int max = MINF, min = INF;
+            foreach (int x in arr)
+            {
+                if (max < x)
+                {
+                    max = x;
+                }
+                if (min > x)
+                {
+                    min = x;
+                }
+            }
+
+            int chunk_size = (int)((max - min) / (double)nthreads + 0.5);
+
+            List<List<int>> slices_ = new List<List<int>>(nthreads);
+
+            for (int i = 0; i < nthreads; i++)
+            {
+                slices_.Add(new List<int>());
+            }
+
+            foreach (int x in arr)
+            {
+                int thread_id = Math.Min((x - min) / chunk_size, slices_.Count - 1);
+                if (verbose > 1)
+                {
+                    Console.WriteLine($"{x} was dispatched at Thread{thread_id}");
+                }
+                slices_[thread_id].Add(x);
+            }
+
+            if (verbose > 0)
+            {
+                Console.WriteLine("Threads load:");
+                for (int i=0; i<nthreads; i++)
+                {
+                    Console.WriteLine($"\t Thread{i}: {(slices_[i].Count / (double)arr.Length) * 100}%");
+                }
+            }
+
+            List<Thread> threads = new List<Thread>(nthreads);
+            int[][] slices = new int[nthreads][];
+
+            for (int i=0; i<nthreads; i++)
+            {
+                slices[i] = slices_[i].ToArray();
+            }
+
+            for (int i=0; i<nthreads; i++)
+            {
+                threads.Add(
+                    new Thread(
+                        (n) => QuadricSort(slices[(int)n])
+                    )
+                );
+                threads[threads.Count - 1].Start(i);
+            }
+            foreach (var thrd in threads)
+            {
+                thrd.Join();
+            }
+            Stack(slices, arr);
+        }
 
         static int GetNthreads(int? nthreads_)
         {

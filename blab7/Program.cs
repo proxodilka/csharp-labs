@@ -18,12 +18,16 @@ namespace blab7
     static void RunLockExample()
     {
       Console.WriteLine(GetSeparator("Lock"));
-      int[] a = { 1, 2, 3, 4, 5 };
-      SumThread mt1 = new SumThread("Поток 1", a);
-      SumThread mt2 = new SumThread("Поток 2", a);
-      mt1.thread.Join();
-      mt2.thread.Join();
-      Console.WriteLine("Основной поток завершил выполнение");
+      int N = 1000;
+      int[] arr = new int[N];
+
+      for (int i=0; i< N; i++)
+      {
+        arr[i] = i;
+      }
+      ParallelSum ps = new ParallelSum(arr, 240, 4);
+      int res = ps.Run();
+      Console.WriteLine($"Основной поток завершил выполнение: {res}");
     }
 
     static void RunSemaphoreExample()
@@ -50,8 +54,8 @@ namespace blab7
     static void Main(string[] args)
     {
       RunLockExample();
-      // RunMutexExample();
-      // RunSemaphoreExample();
+      RunMutexExample();
+      RunSemaphoreExample();
     }
 
   }

@@ -68,6 +68,7 @@ namespace blab8
         }
         static void Main(string[] args)
         {
+            Console.WriteLine($"Solving {a}*x^2 + {b}*x + {c} = 0");
             Thread[] threads = new Thread[] {
                 new Thread(_B), new Thread(A2), new Thread(B2), new Thread(AC4),
                 new Thread(D), new Thread(DSQRT), new Thread(X1), new Thread(X2)
